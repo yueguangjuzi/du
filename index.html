@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>生日倒计时</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* ── 毛玻璃模糊（数值越小越清晰，越大越朦胧）── */
+      --glass-blur: 1px;
+      /* 标题卡片、生日卡片 */
+      --glass-blur-badge: 2px;
+      /* 右上角角标小方块 */
+
+      --glass-bg: rgba(255, 255, 255, 0.04);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.65);
+      --text-muted: rgba(255, 255, 255, 0.45);
+      --accent: #7c9cff;
+      --radius: 18px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      min-height: 100dvh;
+      color: var(--text-primary);
+      background: #0f0c29;
+      overflow-x: hidden;
+    }
+
+    /* 背景层 */
+    .bg-layer {
+      text-align: center;
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      background: #1a1020;
+    }
+
+    .bg-layer img {
+      width: 30%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 18%;
+
+    }
+
+    .bg-layer::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg,
+          rgba(0, 0, 0, 0.08) 0%,
+          rgba(0, 0, 0, 0.22) 55%,
+          rgba(0, 0, 0, 0.42) 100%);
+      pointer-events: none;
+    }
+
+    @media (max-width: 480px) {
+      .bg-layer img {
+        object-position: center 12%;
+      }
+    }
+
+    @media (min-aspect-ratio: 9/16) {
+      .bg-layer img {
+        object-position: center 20%;
+      }
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: calc(20px + var(--safe-top)) 16px calc(32px + var(--safe-bottom));
+    }
+
+    /* 顶部标题卡片 */
+    .header-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      text-align: center;
+    }
+
+    .header-card h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .header-card p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .header-stats {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-top: 16px;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* 卡片列表 */
+    .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* 生日卡片 */
+    .birthday-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
+      position: relative;
+    }
+
+    .birthday-card.is-today {
+      border-color: rgba(255, 200, 100, 0.35);
+      background: rgba(255, 200, 100, 0.06);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 12px;
+    }
+
+    .card-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .card-badge {
+      min-width: 42px;
+      max-width: 72px;
+      height: 42px;
+      padding: 0 10px;
+      border-radius: 10px;
+      backdrop-filter: blur(var(--glass-blur-badge));
+      -webkit-backdrop-filter: blur(var(--glass-blur-badge));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+      line-height: 1.2;
+      text-align: center;
+      word-break: break-all;
+    }
+
+    /* 倒计时 */
+    .countdown {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .countdown-main {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .countdown-main .num {
+      color: var(--card-accent, var(--accent));
+    }
+
+    .countdown-main .unit {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-right: 6px;
+    }
+
+    .countdown-today {
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #ffd700, #ff8c42);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .card-date {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* 标签 */
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .tag-blue {
+      background: rgba(59, 130, 246, 0.75);
+      color: #fff;
+    }
+
+    .tag-green {
+      background: rgba(34, 197, 94, 0.75);
+      color: #fff;
+    }
+
+    .tag-orange {
+      background: rgba(249, 115, 22, 0.75);
+      color: #fff;
+    }
+
+    .tag-purple {
+      background: rgba(168, 85, 247, 0.75);
+      color: #fff;
+    }
+
+    .tag-pink {
+      background: rgba(236, 72, 153, 0.75);
+      color: #fff;
+    }
+
+    .tag-teal {
+      background: rgba(20, 184, 166, 0.75);
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="bg-layer">
+    <img src="1.jpg" alt="">
+  </div>
+
+  <div class="page">
+    <div class="header-card">
+      <h1>🎂 生日倒计时</h1>
+      <p>记录每一个值得庆祝的日子</p>
+      <div class="header-stats">
+        <div class="stat-item">
+          <div class="stat-num" id="totalCount">0</div>
+          <div class="stat-label">共记录</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="nearestDays">—</div>
+          <div class="stat-label">最近生日</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-list" id="cardList"></div>
+  </div>
+
+  <script>
+    // 直接在这里修改生日数据，保存后刷新页面即可生效
+    const DEFAULT_DATA = [
+      { id: "1", name: "张淇", badge: "渡", month: 10, day: 22, birthYear: 2005, relation: "1", note: "需要靠山" },
+      { id: "2", name: "刘頔", badge: "蛋", month: 7, day: 4, birthYear: 2005, relation: "1", note: "" },
+      { id: "3", name: "普婧羽", badge: "鱼", month: 3, day: 7, birthYear: 2004, relation: "1", note: "海神不需要这颗心" },
+      { id: "4", name: "高澄佳", badge: "橙", month: 6, day: 17, birthYear: 2006, relation: "1", note: "" },
+      { id: "5", name: "潘思言", badge: "言", month: 10, day: 21, birthYear: 2007, relation: "1", note: "" },
+      { id: "6", name: "王鑫", badge: "橘", month: 4, day: 1, birthYear: 2001, relation: "1", note: "爱是常觉亏欠" },
+      { id: "7", name: "邱慧娴", badge: "娴", month: 11, day: 17, birthYear: 2004, relation: "1", note: "无忧" },
+    ];
+
+    const ACCENT_COLORS = [
+      "#7c9cff", "#f472b6", "#34d399", "#fb923c",
+      "#a78bfa", "#38bdf8", "#fbbf24", "#f87171"
+    ];
+
+    const BADGE_STYLES = [
+      { bg: "rgba(124, 156, 255, 0.38)", border: "rgba(124, 156, 255, 0.55)", color: "#dbeafe" },
+      { bg: "rgba(244, 114, 182, 0.38)", border: "rgba(244, 114, 182, 0.55)", color: "#fce7f3" },
+      { bg: "rgba(52, 211, 153, 0.38)", border: "rgba(52, 211, 153, 0.55)", color: "#d1fae5" },
+      { bg: "rgba(251, 146, 60, 0.38)", border: "rgba(251, 146, 60, 0.55)", color: "#ffedd5" },
+      { bg: "rgba(167, 139, 250, 0.38)", border: "rgba(167, 139, 250, 0.55)", color: "#ede9fe" },
+      { bg: "rgba(56, 189, 248, 0.38)", border: "rgba(56, 189, 248, 0.55)", color: "#e0f2fe" },
+      { bg: "rgba(251, 191, 36, 0.38)", border: "rgba(251, 191, 36, 0.55)", color: "#fef3c7" },
+      { bg: "rgba(248, 113, 113, 0.38)", border: "rgba(248, 113, 113, 0.55)", color: "#fee2e2" },
+    ];
+
+    const TAG_COLORS = ["tag-blue", "tag-green", "tag-orange", "tag-purple", "tag-pink", "tag-teal"];
+
+    const ZODIAC = [
+      { name: "摩羯座", start: [1, 1], end: [1, 19] },
+      { name: "水瓶座", start: [1, 20], end: [2, 18] },
+      { name: "双鱼座", start: [2, 19], end: [3, 20] },
+      { name: "白羊座", start: [3, 21], end: [4, 19] },
+      { name: "金牛座", start: [4, 20], end: [5, 20] },
+      { name: "双子座", start: [5, 21], end: [6, 21] },
+      { name: "巨蟹座", start: [6, 22], end: [7, 22] },
+      { name: "狮子座", start: [7, 23], end: [8, 22] },
+      { name: "处女座", start: [8, 23], end: [9, 22] },
+      { name: "天秤座", start: [9, 23], end: [10, 23] },
+      { name: "天蝎座", start: [10, 24], end: [11, 22] },
+      { name: "射手座", start: [11, 23], end: [12, 21] },
+      { name: "摩羯座", start: [12, 22], end: [12, 31] },
+    ];
+
+    function getZodiac(month, day) {
+      for (const z of ZODIAC) {
+        const [sm, sd] = z.start;
+        const [em, ed] = z.end;
+        const afterStart = month > sm || (month === sm && day >= sd);
+        const beforeEnd = month < em || (month === em && day <= ed);
+        if (afterStart && beforeEnd) return z.name;
+      }
+      return "未知";
+    }
+
+    function getNextBirthday(month, day, now = new Date()) {
+      const year = now.getFullYear();
+      let next = new Date(year, month - 1, day, 0, 0, 0, 0);
+      if (next <= now) {
+        next = new Date(year + 1, month - 1, day, 0, 0, 0, 0);
+      }
+      return next;
+    }
+
+    function getCountdown(month, day) {
+      const now = new Date();
+      const next = getNextBirthday(month, day, now);
+      const diff = next - now;
+      const isToday = now.getMonth() === month - 1 && now.getDate() === day;
+
+      if (isToday) {
+        return { isToday: true, days: 0, hours: 0, minutes: 0, seconds: 0, totalMs: 0 };
+      }
+
+      return {
+        isToday: false,
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor((diff % 86400000) / 3600000),
+        minutes: Math.floor((diff % 3600000) / 60000),
+        seconds: Math.floor((diff % 60000) / 1000),
+        totalMs: diff,
+      };
+    }
+
+    function calcNextAge(birthYear, month, day) {
+      if (!birthYear) return null;
+      const now = new Date();
+      const hadBirthday =
+        now.getMonth() > month - 1 ||
+        (now.getMonth() === month - 1 && now.getDate() >= day);
+      return hadBirthday ? now.getFullYear() - birthYear + 1 : now.getFullYear() - birthYear;
+    }
+
+    function formatDate(month, day) {
+      return `${month} 月 ${day} 日`;
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderCards() {
+      const list = document.getElementById("cardList");
+      const sorted = [...DEFAULT_DATA].sort(
+        (a, b) => getCountdown(a.month, a.day).totalMs - getCountdown(b.month, b.day).totalMs
+      );
+
+      list.innerHTML = sorted.map((p, i) => {
+        const cd = getCountdown(p.month, p.day);
+        const accent = ACCENT_COLORS[i % ACCENT_COLORS.length];
+        const zodiac = getZodiac(p.month, p.day);
+        const nextAge = calcNextAge(p.birthYear, p.month, p.day);
+
+        let countdownHtml;
+        if (cd.isToday) {
+          countdownHtml = `<div class="countdown-today">🎉 今天生日！</div>`;
+        } else {
+          countdownHtml = `
+          <div class="countdown">
+            <div class="countdown-main">
+              <span class="num">${cd.days}</span><span class="unit">天</span>
+              <span class="num">${String(cd.hours).padStart(2, "0")}</span><span class="unit">时</span>
+              <span class="num">${String(cd.minutes).padStart(2, "0")}</span><span class="unit">分</span>
+              <span class="num">${String(cd.seconds).padStart(2, "0")}</span><span class="unit">秒</span>
+            </div>
+          </div>`;
+        }
+
+        const tags = [];
+        if (p.relation) tags.push({ text: p.relation, cls: TAG_COLORS[0] });
+        tags.push({ text: zodiac, cls: TAG_COLORS[1] });
+        if (nextAge !== null) tags.push({ text: `即将 ${nextAge} 岁`, cls: TAG_COLORS[2] });
+        if (cd.days <= 7 && !cd.isToday) tags.push({ text: "即将到来", cls: TAG_COLORS[3] });
+        if (p.note) tags.push({ text: p.note, cls: TAG_COLORS[4] });
+
+        const badgeStyle = BADGE_STYLES[i % BADGE_STYLES.length];
+        const badgeHtml = p.badge
+          ? `<div class="card-badge" style="background:${badgeStyle.bg};border:1px solid ${badgeStyle.border};color:${badgeStyle.color}">${escHtml(p.badge)}</div>`
+          : "";
+
+        return `
+        <div class="birthday-card${cd.isToday ? " is-today" : ""}" style="--card-accent:${accent}">
+          <div class="card-top">
+            <div class="card-name">${escHtml(p.name)}</div>
+            ${badgeHtml}
+          </div>
+          ${countdownHtml}
+          <div class="card-date">生日：${formatDate(p.month, p.day)}</div>
+          <div class="tags">
+            ${tags.map(t => `<span class="tag ${t.cls}">${escHtml(t.text)}</span>`).join("")}
+          </div>
+        </div>`;
+      }).join("");
+
+      document.getElementById("totalCount").textContent = DEFAULT_DATA.length;
+      const nearest = sorted.length ? getCountdown(sorted[0].month, sorted[0].day) : null;
+      document.getElementById("nearestDays").textContent =
+        !nearest ? "—" : nearest.isToday ? "今天!" : `${nearest.days}天`;
+    }
+
+    renderCards();
+    setInterval(renderCards, 1000);
+  </script>
+</body>
+
+</html>
